@@ -1,0 +1,15 @@
+test-list:
+  - foo: '@foo'
+    bar: '@bar'
+  - fizz: '@fizz'
+    buzz: '@buzz'
+  - 'a string in list'
+hosts:
+  - 'some host'
+  - 'another host'
+test-map:
+  a-list:
+    - first-item
+    - second-item
+    - third-item
+  a-string: just-a-string

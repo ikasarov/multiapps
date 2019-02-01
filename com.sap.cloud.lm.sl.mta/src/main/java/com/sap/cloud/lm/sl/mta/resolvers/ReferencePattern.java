@@ -20,6 +20,10 @@ public enum ReferencePattern implements ValueMatcher {
     protected boolean hasPropertySetSegment() {
         return FULLY_QUALIFIED.equals(this);
     }
+    
+    protected boolean hasDepthOfReference() {
+        return PLACEHOLDER.equals(this);
+    }
 
     @Override
     public List<Reference> match(String line) {

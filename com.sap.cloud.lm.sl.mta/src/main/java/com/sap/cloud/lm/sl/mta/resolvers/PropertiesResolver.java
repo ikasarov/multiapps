@@ -2,10 +2,17 @@ package com.sap.cloud.lm.sl.mta.resolvers;
 
 import static com.sap.cloud.lm.sl.mta.util.ValidatorUtil.getPrefixedName;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.commons.collections4.IterableUtils;
+import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import com.sap.cloud.lm.sl.common.ContentException;
 import com.sap.cloud.lm.sl.mta.helpers.SimplePropertyVisitor;
@@ -108,17 +115,63 @@ public class PropertiesResolver implements SimplePropertyVisitor, Resolver<Map<S
     private Object resolveReference(Reference reference) {
         String referencedPropertyKey = reference.getPropertyName();
         Map<String, Object> replacementValues = valuesResolver.resolveProvidedValues(reference.getDependencyName());
-        if (replacementValues == null || !replacementValues.containsKey(referencedPropertyKey)) {
+
+        boolean canResolveInDepth = referencePattern.hasDepthOfReference() && referencedPropertyKey.contains("/");
+        if (replacementValues == null || (!replacementValues.containsKey(referencedPropertyKey) && !canResolveInDepth)) {            
             if (isStrict) {
                 throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, referencedPropertyKey));
             }
             return null;
         }
-        String referencedPropertyKeyWithSuffix = getReferencedPropertyKeyWithSuffix(reference);
+        // always try to resolve as a flat reference first
         Object referencedProperty = replacementValues.get(referencedPropertyKey);
+        
+        if (referencedProperty == null && canResolveInDepth) {
+            referencedProperty = resolveInDepth(replacementValues, referencedPropertyKey);
+        }
+        
+        String referencedPropertyKeyWithSuffix = getReferencedPropertyKeyWithSuffix(reference);
         return resolve(referencedPropertyKeyWithSuffix, referencedProperty);
     }
-
+    
+    protected Object resolveInDepth(Map<String, Object> properties, String propertyKey) {
+        Matcher matcher = Pattern.compile("([^/]+)/?").matcher(propertyKey);
+        
+        if (!matcher.find()) {
+            if (isStrict) {
+                throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, propertyKey));
+            }
+            return null;
+        }
+        
+        Object currentProperty = properties.get(matcher.group(1));
+        
+        while(matcher.find()) {
+            String subKey = matcher.group(1);
+            
+            if (StringUtils.isNumeric(subKey)) {
+                if (currentProperty instanceof Collection) {
+                    try {
+                        currentProperty = IterableUtils.get((Collection<?>)currentProperty, Integer.parseInt(subKey));
+                        continue;
+                    } catch (IndexOutOfBoundsException e) {}
+                }
+                throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, propertyKey));
+            } else {
+                if (currentProperty instanceof Map) {
+                    currentProperty = MapUtils.getObject((Map<String, ?>) currentProperty, subKey);
+                    if (currentProperty != null) {
+                        continue;
+                    }
+                }
+                
+                throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, propertyKey));
+            }
+        }
+        
+        return currentProperty;
+    }
+    
     private String getReferencedPropertyKeyWithSuffix(Reference reference) {
         if (reference.getDependencyName() != null) {
             return getPrefixedName(reference.getDependencyName(), reference.getPropertyName());

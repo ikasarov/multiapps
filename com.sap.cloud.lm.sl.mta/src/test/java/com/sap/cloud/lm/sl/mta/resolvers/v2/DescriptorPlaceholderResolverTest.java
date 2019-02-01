@@ -100,6 +100,10 @@ public class DescriptorPlaceholderResolverTest {
             {
                 "mtad-with-repeating-placeholder.yaml", new Expectation(Expectation.Type.RESOURCE, "result-from-repeating-placeholder.json"),
             },
+            // (19) Test placeholders for list and map elements:
+            {
+                "mtad-19.yaml", "platform-1.json", new Expectation(Expectation.Type.RESOURCE, "result-17.json"),
+            },
 // @formatter:on
         });
     }
