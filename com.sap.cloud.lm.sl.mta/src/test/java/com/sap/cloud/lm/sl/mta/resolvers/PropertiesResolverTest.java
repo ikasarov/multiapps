@@ -11,7 +11,6 @@ import org.junit.runners.Parameterized.Parameters;
 import com.sap.cloud.lm.sl.common.util.Callable;
 import com.sap.cloud.lm.sl.common.util.TestUtil;
 import com.sap.cloud.lm.sl.common.util.TestUtil.Expectation;
-import com.sap.cloud.lm.sl.mta.MtaTestUtil;
 
 @RunWith(Parameterized.class)
 public class PropertiesResolverTest {
@@ -59,7 +58,7 @@ public class PropertiesResolverTest {
     }
     
     public PropertiesResolverTest(String modulePropertiesLocation, String parameterExpression, Expectation expectation) {
-        this.moduleProperties = MtaTestUtil.getMap(modulePropertiesLocation, getClass());
+        this.moduleProperties = TestUtil.getMap(modulePropertiesLocation, getClass());
         this.parameterEpression = parameterExpression;
         this.expectation = expectation;
     }

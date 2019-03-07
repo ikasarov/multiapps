@@ -10,7 +10,6 @@ modules:
         properties:
           route: ${routes/0/route}
           second-in-list: ${list/1}
-          thing: ${thing} # resolved via singularPluralMapping in system parameters
     parameters:
       memory: 512M
       disk-quota: 256M
