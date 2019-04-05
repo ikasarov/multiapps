@@ -113,60 +113,84 @@ public class PropertiesResolver implements SimplePropertyVisitor, Resolver<Map<S
     }
 
     private Object resolveReference(Reference reference) {
-        String referencedPropertyKey = reference.getPropertyName();
+        String referenceKey = reference.getKey();
         Map<String, Object> replacementValues = valuesResolver.resolveProvidedValues(reference.getDependencyName());
 
-        boolean canResolveInDepth = referencePattern.hasDepthOfReference() && referencedPropertyKey.contains("/");
-        if (replacementValues == null || (!replacementValues.containsKey(referencedPropertyKey) && !canResolveInDepth)) {            
+        boolean canResolveInDepth = referencePattern.hasDepthOfReference() && referenceKey.contains("/");
+        if (!referenceResolutionIsPossible(referenceKey, replacementValues, canResolveInDepth)) {        
             if (isStrict) {
-                throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, referencedPropertyKey));
+                throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, referenceKey));
             }
             return null;
         }
         // always try to resolve as a flat reference first
-        Object referencedProperty = replacementValues.get(referencedPropertyKey);
+        Object referencedProperty = replacementValues.get(referenceKey);
         
         if (referencedProperty == null && canResolveInDepth) {
-            referencedProperty = resolveInDepth(replacementValues, referencedPropertyKey);
+            referencedProperty = resolveReferenceInDepth(referenceKey, replacementValues);
         }
         
         String referencedPropertyKeyWithSuffix = getReferencedPropertyKeyWithSuffix(reference);
         return resolve(referencedPropertyKeyWithSuffix, referencedProperty);
     }
     
-    protected Object resolveInDepth(Map<String, Object> properties, String propertyKey) {
-        Matcher matcher = Pattern.compile("([^/]+)/?").matcher(propertyKey);
+    private boolean referenceResolutionIsPossible(String referenceKey, Map<String, Object> referencedProperties, boolean canResolveInDepth) {
+        if (referencedProperties == null) {
+            return false;
+        }
         
-        if (!matcher.find()) {
+        if (!referencedProperties.containsKey(referenceKey) && !canResolveInDepth) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    protected Object resolveReferenceInDepth(String deepReferenceKey, Map<String, Object> referencedProperties) {
+        Matcher referencePartsMatcher = Pattern.compile("([^/]+)/?").matcher(deepReferenceKey);
+        
+        if (!referencePartsMatcher.find()) {
             if (isStrict) {
-                throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, propertyKey));
+                throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, deepReferenceKey));
             }
             return null;
         }
         
-        Object currentProperty = properties.get(matcher.group(1));
+        Object currentProperty = referencedProperties.get(referencePartsMatcher.group(1));
+        String keyPart = "";
         
-        while(matcher.find()) {
-            String subKey = matcher.group(1);
+        while(referencePartsMatcher.find()) {
+            if (keyPart.isEmpty()) {
+                keyPart = referencePartsMatcher.group(1);
+            } else {
+                keyPart = keyPart + "/" + referencePartsMatcher.group(1);
+            }
             
-            if (StringUtils.isNumeric(subKey)) {
-                if (currentProperty instanceof Collection) {
+            if (currentProperty instanceof Collection) {
+                if (StringUtils.isNumeric(keyPart)) {
                     try {
-                        currentProperty = IterableUtils.get((Collection<?>)currentProperty, Integer.parseInt(subKey));
+                        currentProperty = IterableUtils.get((Collection<?>)currentProperty, Integer.parseInt(keyPart));
+                        keyPart = "";
                         continue;
                     } catch (IndexOutOfBoundsException e) {}
                 }
-                throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, propertyKey));
+                throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, deepReferenceKey));
             } else {
                 if (currentProperty instanceof Map) {
-                    currentProperty = MapUtils.getObject((Map<String, ?>) currentProperty, subKey);
-                    if (currentProperty != null) {
-                        continue;
+                    Object subProperty = MapUtils.getObject((Map<Object, ?>) currentProperty, keyPart);
+                    if (subProperty != null) {
+                        currentProperty = subProperty;
+                        keyPart = "";
                     }
+                    continue;
                 }
                 
-                throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, propertyKey));
+                throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, deepReferenceKey));
             }
+        }
+        
+        if (!keyPart.isEmpty()) {
+            throw new ContentException(Messages.UNABLE_TO_RESOLVE, getPrefixedName(prefix, deepReferenceKey));
         }
         
         return currentProperty;
@@ -174,9 +198,9 @@ public class PropertiesResolver implements SimplePropertyVisitor, Resolver<Map<S
     
     private String getReferencedPropertyKeyWithSuffix(Reference reference) {
         if (reference.getDependencyName() != null) {
-            return getPrefixedName(reference.getDependencyName(), reference.getPropertyName());
+            return getPrefixedName(reference.getDependencyName(), reference.getKey());
         }
-        return reference.getPropertyName();
+        return reference.getKey();
     }
 
     private List<Reference> detectReferences(String line) {

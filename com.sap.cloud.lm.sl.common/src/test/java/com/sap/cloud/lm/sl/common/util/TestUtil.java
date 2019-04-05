@@ -48,6 +48,10 @@ public class TestUtil {
             return type == Type.SKIP;
         }
 
+        public String toString() {
+            return "Expecting test to " + (expectsSuccess() ? "SUCCEED and result in " : "FAIL with ") + expectation;
+        }
+
     }
 
     public static InputStream getResourceAsInputStream(String name, Class<?> resourceClass) {

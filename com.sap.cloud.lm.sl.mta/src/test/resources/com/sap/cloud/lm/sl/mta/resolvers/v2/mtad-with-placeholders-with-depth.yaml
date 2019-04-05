@@ -21,7 +21,6 @@ modules:
       list:
         - ${memory}
         - ${disk-quota}
-
   - name: backend
     type: java.tomee
     provides:

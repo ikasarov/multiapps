@@ -46,9 +46,9 @@ public enum ReferencePattern implements ValueMatcher {
 
     public String toString(Reference reference) {
         if (this.hasPropertySetSegment()) {
-            return String.format(this.patternFormat, reference.getDependencyName(), reference.getPropertyName());
+            return String.format(this.patternFormat, reference.getDependencyName(), reference.getKey());
         }
-        return String.format(this.patternFormat, reference.getPropertyName());
+        return String.format(this.patternFormat, reference.getKey());
     }
 
 }
