@@ -6,13 +6,13 @@ public class Reference {
     private final String matchedPattern;
     private final String dependencyName;
 
-    public Reference(String matchedPattern, String propertyName) {
-        this(matchedPattern, propertyName, null);
+    public Reference(String matchedPattern, String key) {
+        this(matchedPattern, key, null);
     }
 
-    public Reference(String matchedPattern, String propertyName, String dependencyName) {
-        this.key = propertyName;
+    public Reference(String matchedPattern, String key, String dependencyName) {
         this.matchedPattern = matchedPattern;
+        this.key = key;
         this.dependencyName = dependencyName;
     }
 
